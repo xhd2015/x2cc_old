@@ -177,6 +177,7 @@ namespace x2
     bool canSymbolEmpty(int i);
     bool canSentenceEmpty(const GrammaSentence& s);//可以构造一个非空表，以及一个关于句型的第一个非空符号的位置（左起最长空串的长度）
     bool canSentenceEmpty(const GrammaSentence& s,int end);
+    bool canSentenceEmpty(const GrammaSentence& s,int start,int end);
     AS_MACRO const std::vector<GrammaSentence>& getRightSentences(int i)const;
     AS_MACRO std::vector<GrammaSentence>& getRightSentences(int i);
 
@@ -215,9 +216,8 @@ namespace x2
      */
     void reduceLeftFactor(int i,int j);
     SetsType calcFirst();
-    void calcFirst(int i);
-    void calcFollow();
-    void calcFollow(int i);
+    SetsType calcFollow(int start,int end);
+    SetsType calcFollow(const SetsType& firstset,int start,int end);
 
 
     Gramma duplicate(); //symbols , productions will change

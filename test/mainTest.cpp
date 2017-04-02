@@ -42,15 +42,16 @@ int main()
 void testGramma()
 {
   Gramma g({
-    {GrammaSymbols::TYPE_EMPTY,"EMPTY"},
+    {GrammaSymbols::TYPE_EMPTY,"<EMPTY>"},
     {GrammaSymbols::TYPE_TERM,"a"},
     {GrammaSymbols::TYPE_TERM,"b"},
-    {GrammaSymbols::TYPE_VAR,"S"},
+    {GrammaSymbols::TYPE_VAR,"S"},//2,start符号
     {GrammaSymbols::TYPE_VAR,"B"},
     {GrammaSymbols::TYPE_VAR,"C"},
     {GrammaSymbols::TYPE_VAR,"D"}, //5
     {GrammaSymbols::TYPE_TERM,"c"},//6
     {GrammaSymbols::TYPE_VAR,"F"},//7
+    {GrammaSymbols::TYPE_TERM,"<END>"},//8,end符号
   },
 	 {
 	     {2,{3,3}}, //S->BB
@@ -86,15 +87,15 @@ void testGramma()
   std::cout << "S can be empty?" << g.canSymbolEmpty(2)<<std::endl;//can S empty?
 
   //========替换表达式
-  std::cout << "first replacement "<<std::endl;
-  g.replaceFirstProduction(2, 3);
-  std::cout << g.toString() <<std::endl;
-  std::cout << "second replacement "<<std::endl;
-  g.replaceFirstProduction(2, 3);
-  std::cout << g.toString() <<std::endl;
-  std::cout << "third replacement "<<std::endl;
-  g.replaceFirstProduction(2, 3);
-  std::cout << g.toString() <<std::endl;
+//  std::cout << "first replacement "<<std::endl;
+//  g.replaceFirstProduction(2, 3);
+//  std::cout << g.toString() <<std::endl;
+//  std::cout << "second replacement "<<std::endl;
+//  g.replaceFirstProduction(2, 3);
+//  std::cout << g.toString() <<std::endl;
+//  std::cout << "third replacement "<<std::endl;
+//  g.replaceFirstProduction(2, 3);
+//  std::cout << g.toString() <<std::endl;
 
   //======提取左因子的辅助函数 ： reduce
 //  std::vector<int> subset={0,1,2};
@@ -144,6 +145,21 @@ void testGramma()
     strfirstset += std::string("\n}\n");
   });
   std::cout << strfirstset << std::endl;
+
+  //==========计算FOLLOW集
+  std::cout << "calculating FOLLOW set" << std::endl;
+  Gramma::SetsType followset=std::move(g.calcFollow(firstset,2,8));
+  std::string strfollwset;
+  std::for_each(followset.begin(),followset.end(),[&strfollwset,&g](const Gramma::SetsType::value_type &it){
+    strfollwset += g.gsyms.getString(it.first) + "{\n\t\t";
+    std::for_each(it.second.begin(),it.second.end(), [&strfollwset,&g](int i){
+      strfollwset += g.gsyms.getString(i) + ", ";
+    });
+    strfollwset += std::string("\n}\n");
+  });
+  std::cout << strfollwset << std::endl;
+
+  //===========do you agree with me?
 
 
 

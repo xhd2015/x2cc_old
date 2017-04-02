@@ -269,8 +269,13 @@ namespace x2
   }
   bool Gramma::canSentenceEmpty(const GrammaSentence& s,int end)
   {
-    auto it=s.syms.begin(),itend=s.syms.begin() + end;
-    while(it!=itend)
+    return canSentenceEmpty(s,0,end);
+  }
+  bool Gramma::canSentenceEmpty(const GrammaSentence& s,int start,int end)
+  {
+    if(end<=start)return true;
+    auto it=s.syms.begin() + start,itend=s.syms.begin() + end;
+    while(it < itend)
 	{
 	  if(!canSymbolEmpty(*it))return false;
 	  it++;
@@ -314,7 +319,7 @@ namespace x2
 
   void Gramma::reduceLeftRecursive()
   {
-    //获取所有的键，然后排序
+    //获取所有的键,次序固定
     auto vec=std::move(getProductionsHead());
     for(size_type i=0;i<vec.size();i++)
       {
@@ -605,7 +610,7 @@ namespace x2
  typename Gramma::SetsType Gramma::calcFirst()
   {
     bool hasnew=true;
-    std::map<int,std::set<int>> s;
+    SetsType s;
     while(hasnew)
       {
 	hasnew=false;
@@ -691,10 +696,121 @@ namespace x2
     return s;
 
   }
-  void Gramma::calcFollow()
-  {
+ typename Gramma::SetsType Gramma::calcFollow(const SetsType& firstset,int start,int end)
+ {
+   SetsType s;
+   SetsType deps;// calculate the dependency of i, i's FOLLOW change --> deps[i]'s FOLLOW change
 
-  }
+   //========初始化开始符号和结束符号
+   s[start]=std::set<int>();
+   s[start].insert(end);
+
+   //========将FIRST集加入FOLLOW集中
+   for(auto &it:prods)
+     {
+//	 std::cout << "current variable is " << gsyms.getString(it.first) << std::endl;
+	 for(auto &stnc:it.second)
+	   {
+//	     std::cout << "current sentence is " << toString(stnc) << std::endl;
+	     //======对每个句型中的 第parti个符号进行设置FOLLOW集
+	     size_type parti=0;
+	     for(;parti < stnc.getLength();parti++)
+	       {
+		 int curSym=stnc.syms[parti];
+//		 std::cout << "current parti is " << parti << ",  curSym is " << toString(curSym) << std::endl;
+		 if(!gsyms.isSymbolVar(curSym))continue;  //如果不是变量，就不进行下面的检查
+
+		 //=======初始化FOLLOW集合和deps集合
+		 if(s.find(curSym)==s.end())s[curSym]=std::set<int>();
+		 if(deps.find(it.first)==deps.end())deps[it.first]=std::set<int>();
+
+		 //===========从curSym之后的每个符号检查空句型，并将下一个变量或者终结符或者EMPTY的FIRST集加入
+		 size_type partj=parti+1;
+		 for(;partj < stnc.getLength();partj++)//对 [parti+1,) 的子句型检查，直到检查到第一个不为空的值;如果最后找到末尾
+		   //可以为空，则填上依赖关系 curSym-->it.first
+		   {
+
+		     //FOLLOW(curSym) += FIRST(A..)
+		     if(gsyms.isSymbolTerm(stnc.syms[partj])) //对于终结符，直接加入
+		       {
+//			 std::cout << "add terminator" << toString(stnc.syms[partj]) << std::endl;
+			 s[curSym].insert(stnc.syms[partj]);
+		       }
+		     else if(!gsyms.isSymbolEmpty(stnc.syms[parti])){	//非空符号，是变量
+//			 std::cout << "add FIRST(" << toString(stnc.syms[partj]) << ")"<< std::endl;
+			 const std::set<int> &fset=firstset.at(stnc.syms[partj]);
+			 s[curSym].insert(fset.begin(),fset.end());
+		     }
+		     if(!canSymbolEmpty(stnc.syms[partj]))// curSym A B C
+		       {
+			   break;
+		       }
+		   }
+		   if(partj==stnc.getLength() && it.first!=curSym) //查到依赖关系,如果是B-->B这种，就不用保留
+		     {
+//		       std::cout << "find deps,  " <<toString(it.first) << "  contains "<< toString(curSym) << std::endl;
+		       deps[it.first].insert(curSym);
+		     }
+	       }
+//	     while(getchar()!='\n');
+	   }
+     }
+   //=====除去FOLLOW集中的EMPTY
+//   std::cout << "removing empty from FOLLOWs"<<std::endl;
+//   while(getchar()!='\n');
+   int empty=gsyms.findEmpty();
+   for(auto &it:s)
+     {
+       it.second.erase(empty);
+     }
+
+   //======打印deps
+//   std::cout << "map of deps" << std::endl;
+//   for(auto it:deps)
+//     {
+//       std::cout << toString(it.first) << ": { ";
+//       for(int i:it.second)
+//	 {
+//	   std::cout << toString(i) << ", ";
+//	 }
+//       std::cout << "}" << std::endl;
+//     }
+
+   //=======循环检测deps集合中的变化直到FOLLOW集直到没有新的集合变化
+   std::map<int,bool> changed;//将所有的置为changed
+   for(auto it:s)
+     {
+       changed[it.first]=true;
+     }
+   bool hasnew=true;
+   while(hasnew)
+     {
+       hasnew=false;
+//       std::cout << "map of changed" << std::endl;
+       for(auto &it:changed)
+	 {
+//	   std::cout << toString(it.first) << " == " << it.second << std::endl;
+	   if(it.second==true)//changed
+	     {
+	       hasnew=true;
+	       for(int itt:deps[it.first])//all deps will be changed
+		 {
+		   if(!std::includes(s[itt].begin(), s[itt].end(), s[it.first].begin(), s[it.first].end()))
+		     {
+			 s[itt].insert(s[it.first].begin(), s[it.first].end());
+			 changed[itt]=true;
+		     }
+		 }
+	       it.second=false;//that has been done.
+	     }
+	 }
+//       while(getchar()!='\n');
+
+
+     }
+   return s;
+ }
+
 
 
 } /* namespace x2 */
