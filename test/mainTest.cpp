@@ -12,9 +12,11 @@
 #include <cassert>
 #include <fstream>
 #include <iostream>
+#include <GrammaUtils.h>
 
 #include <macros/all.h>
 using namespace std;
+using namespace x2;
 
 #define BUFLEN 1024
 char buffer[BUFLEN];
@@ -25,15 +27,127 @@ void testString();
 void testNumber();
 void testNote();
 void testRecursiveMacro();
+void testGramma();
 
 
 int main()
 {
-  testFile();
+//  testFile();
 //  testParseWord();
 //    testString();
 //    testNumber();
 //  testNote();
+  testGramma();
+}
+void testGramma()
+{
+  Gramma g({
+    {GrammaSymbols::TYPE_EMPTY,"EMPTY"},
+    {GrammaSymbols::TYPE_TERM,"a"},
+    {GrammaSymbols::TYPE_TERM,"b"},
+    {GrammaSymbols::TYPE_VAR,"S"},
+    {GrammaSymbols::TYPE_VAR,"B"},
+    {GrammaSymbols::TYPE_VAR,"C"},
+    {GrammaSymbols::TYPE_VAR,"D"}, //5
+    {GrammaSymbols::TYPE_TERM,"c"},//6
+    {GrammaSymbols::TYPE_VAR,"F"},//7
+  },
+	 {
+	     {2,{3,3}}, //S->BB
+	     {3,{0,3}}, //B->aB
+	     {3,{1}},   //B->b
+	     {3,{-1}},    //B->EMPTY
+	     {4,{5,2,3,0}}, //C->D S B a
+	     {4,{5,2,3,0}}, //C->D S B a
+	     {4,{5,2,3,1}}, //C->D S B b
+	     {4,{5,2,2,1}}, //C->D S S b
+	     {5,{5,0}},//D->D a
+	     {5,{5,1}},//D->D b
+	     {5,{2,3}},//D->S B
+	     {5,{3,2}},//D->B S
+//	     {5,{5}}, //D -> D
+	     {7,{6}},//F->c
+	     });
+
+  //S->BB B->aB B->b  S->BBC C->BS , 这种文法可能引起空判定无限递归
+//  g.syms.push_back(GrammaSymbol(GrammaSymbol::SYM_EMPTY));
+
+  //==========打印符号表
+  std::cout<< g.gsyms.toString()<<std::endl;
+
+  //========查找'S'的下标
+  int n=g.gsyms.findSymbolIndex("S");
+  std::cout<<"S is at "<<n<<std::endl;
+
+  //=======打印语法表
+  std::cout<<g.toString()<<std::endl;
+
+  //========确定符号是否包含空集
+  std::cout << "S can be empty?" << g.canSymbolEmpty(2)<<std::endl;//can S empty?
+
+  //========替换表达式
+  std::cout << "first replacement "<<std::endl;
+  g.replaceFirstProduction(2, 3);
+  std::cout << g.toString() <<std::endl;
+  std::cout << "second replacement "<<std::endl;
+  g.replaceFirstProduction(2, 3);
+  std::cout << g.toString() <<std::endl;
+  std::cout << "third replacement "<<std::endl;
+  g.replaceFirstProduction(2, 3);
+  std::cout << g.toString() <<std::endl;
+
+  //======提取左因子的辅助函数 ： reduce
+//  std::vector<int> subset={0,1,2};
+//  int newvar=g.reduce(g.prods[5],g.gsyms.getString(5), 0, 2, subset);
+//  std::cout << "reduce subset"<<std::endl;
+//  std::cout << g.toString() <<std::endl;
+//  std::cout << "reduce C' : [1 2] at (0,1)"<<std::endl;
+//  subset={1,2};
+//  g.reduce(g.prods[newvar],g.gsyms.getString(newvar), 0, 1, subset);
+//  std::cout << g.toString() << std::endl;
+
+//  //=======消除左因子
+//  std::cout << "reduce left factors"<<std::endl;
+//  std::vector<int> subset={0,1,2,3};
+//  g.reduceLeftFactor(g.prods[5],g.gsyms.getString(5),0, subset);
+//  std::cout << g.toString() << std::endl;
+
+//  //=======消除直接左递归
+//  std::cout << "reduce direct left recursive"<<std::endl;
+//  g.reduceDirectLeftRecursive();
+//  std::cout << g.toString() << std::endl;
+
+  //=======消除所有左因子
+  std::cout << "reduce all left factors"<<std::endl;
+  g.reduceLeftFactor();
+  std::cout << g.toString() << std::endl;
+
+  //===========消除左递归
+  std::cout << "reduce left recursive" << std::endl;
+  g.reduceLeftRecursive();
+  std::cout << g.toString() << std::endl;
+
+  //===========消除重复产生式
+  std::cout << "eliminate duplication" << std::endl;
+  g.eliminateDuplication();
+  std::cout << g.toString() << std::endl;
+
+  //===========计算FIRST集
+  std::cout << "calculating FIRST set" <<std::endl;
+  Gramma::SetsType firstset=std::move(g.calcFirst());
+  std::string strfirstset;
+  std::for_each(firstset.begin(),firstset.end(),[&strfirstset,&g](const Gramma::SetsType::value_type &it){
+    strfirstset += g.gsyms.getString(it.first) + "{\n\t\t";
+    std::for_each(it.second.begin(),it.second.end(), [&strfirstset,&g](int i){
+      strfirstset += g.gsyms.getString(i) + ", ";
+    });
+    strfirstset += std::string("\n}\n");
+  });
+  std::cout << strfirstset << std::endl;
+
+
+
+
 
 }
 #define A(i,j) i() k

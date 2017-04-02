@@ -1,8 +1,8 @@
 
 
-ALLH = LexicalParser
+ALLH = LexicalParser SemanticParser
 ALL = LexicalParser mainTest
-PUBLIC = LexicalParser SemanticParser
+PUBLIC = LexicalParser SemanticParser GrammaUtils
 TARGET = mainTest
 GEN = gen
 INCLUDE = include /home/13774/x2-devel/include
@@ -12,7 +12,7 @@ LD = ld
 CC = g++
 
 
-CCFLAGS := $(patsubst %,-I %,$(INCLUDE)) -std=c++11 -D CODE64
+CCFLAGS := $(patsubst %,-I %,$(INCLUDE)) -std=c++14 -D CODE64
 #==========================================
 .ONESHELL:
 .SECONDEXPANSION:
